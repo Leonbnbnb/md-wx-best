@@ -1,0 +1,1334 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown 渲染组件（公众号排版优化）UI 原型</title>
+    <style>
+      :root {
+        --app-bg-0: #070a12;
+        --app-bg-1: #0b1430;
+        --app-accent-0: rgba(124, 92, 255, 0.7);
+        --app-accent-1: rgba(0, 209, 255, 0.55);
+        --glass-bg: rgba(255, 255, 255, 0.08);
+        --glass-border: rgba(255, 255, 255, 0.16);
+        --glass-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
+        --text-0: rgba(255, 255, 255, 0.88);
+        --text-1: rgba(255, 255, 255, 0.68);
+        --text-2: rgba(255, 255, 255, 0.52);
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji",
+          "Segoe UI Emoji";
+        --radius-xl: 28px;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --trans: 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        color: var(--text-0);
+        background: radial-gradient(1200px 700px at 20% 0%, rgba(124, 92, 255, 0.32), transparent 55%),
+          radial-gradient(1000px 700px at 86% 14%, rgba(0, 209, 255, 0.24), transparent 60%),
+          radial-gradient(900px 700px at 50% 100%, rgba(255, 140, 0, 0.12), transparent 60%),
+          linear-gradient(180deg, var(--app-bg-0), var(--app-bg-1));
+        overflow-x: hidden;
+      }
+
+      .bg-grid {
+        position: fixed;
+        inset: 0;
+        background-image: linear-gradient(to right, rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+        background-size: 72px 72px;
+        opacity: 0.08;
+        pointer-events: none;
+        mask-image: radial-gradient(circle at 50% 0%, rgba(0, 0, 0, 1), rgba(0, 0, 0, 0.2) 55%, rgba(0, 0, 0, 0));
+      }
+
+      .page {
+        min-height: 100%;
+        padding: 92px 22px 42px;
+        display: grid;
+        place-items: start center;
+      }
+
+      .shell {
+        width: min(1220px, calc(100vw - 44px));
+        display: grid;
+        grid-template-columns: 1fr 1.2fr;
+        gap: 22px;
+      }
+
+      @media (max-width: 980px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .glass {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-radius: var(--radius-xl);
+      }
+
+      .toolbar-wrap {
+        position: fixed;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 50;
+        width: min(820px, calc(100vw - 28px));
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px 12px;
+      }
+
+      .tool {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text-0);
+        border-radius: 999px;
+        padding: 10px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        transition: transform var(--trans), background var(--trans), border-color var(--trans);
+        user-select: none;
+      }
+
+      .tool:hover {
+        transform: translateY(-1px);
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.22);
+      }
+
+      .tool:active {
+        transform: translateY(0px) scale(0.99);
+      }
+
+      .tool-icon {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .tool-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 650;
+        letter-spacing: 0.1px;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .tool-muted {
+        color: rgba(255, 255, 255, 0.66);
+        font-weight: 520;
+      }
+
+      .chev {
+        opacity: 0.75;
+        transform: translateY(-1px);
+      }
+
+      .menu {
+        position: absolute;
+        top: 54px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(560px, calc(100vw - 28px));
+        padding: 10px;
+        display: none;
+      }
+
+      .menu.open {
+        display: block;
+        animation: pop 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      @keyframes pop {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-6px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0px) scale(1);
+        }
+      }
+
+      .menu-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      @media (max-width: 560px) {
+        .menu-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .theme-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 12px 12px;
+        cursor: pointer;
+        transition: background var(--trans), border-color var(--trans), transform var(--trans);
+      }
+
+      .theme-item:hover {
+        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255, 255, 255, 0.22);
+        transform: translateY(-1px);
+      }
+
+      .theme-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .swatch {
+        width: 18px;
+        height: 18px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        flex: 0 0 auto;
+      }
+
+      .theme-name {
+        font-weight: 680;
+        letter-spacing: 0.1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .theme-hint {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.62);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .badge {
+        font-size: 12px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.74);
+      }
+
+      .card {
+        padding: 18px;
+      }
+
+      .card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .title {
+        font-size: 16px;
+        font-weight: 740;
+        letter-spacing: 0.2px;
+      }
+
+      .subtitle {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--text-1);
+        line-height: 1.5;
+      }
+
+      .pill-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .pill {
+        font-size: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.72);
+        border-radius: 999px;
+        padding: 6px 10px;
+      }
+
+      .editor {
+        width: 100%;
+        height: 620px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(5, 7, 18, 0.55);
+        color: rgba(255, 255, 255, 0.88);
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.55;
+        padding: 14px 14px;
+        outline: none;
+        resize: none;
+        transition: border-color var(--trans), background var(--trans);
+      }
+
+      .editor:focus {
+        border-color: rgba(255, 255, 255, 0.28);
+        background: rgba(5, 7, 18, 0.62);
+      }
+
+      @media (max-width: 980px) {
+        .editor {
+          height: 380px;
+        }
+      }
+
+      .preview-wrap {
+        padding: 18px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .preview-stage {
+        display: grid;
+        place-items: center;
+      }
+
+      .phone-frame {
+        width: 380px;
+        border-radius: 44px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 26px 90px rgba(0, 0, 0, 0.4);
+        padding: 14px;
+        position: relative;
+        transition: width var(--trans);
+      }
+
+      .phone-notch {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 132px;
+        height: 28px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.38);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
+
+      .preview-card {
+        width: 100%;
+        border-radius: 32px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.06);
+        overflow: hidden;
+      }
+
+      .preview-toolbar-placeholder {
+        height: 44px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 12px;
+        letter-spacing: 0.2px;
+      }
+
+      .preview-scroll {
+        max-height: 560px;
+        overflow: auto;
+        padding: 18px 16px 22px;
+        scroll-behavior: smooth;
+      }
+
+      @media (max-width: 980px) {
+        .phone-frame {
+          width: min(380px, calc(100vw - 44px));
+        }
+        .preview-scroll {
+          max-height: 520px;
+        }
+      }
+
+      .view-desktop .phone-frame {
+        width: min(820px, calc(100vw - 44px));
+        border-radius: 26px;
+        padding: 12px;
+      }
+
+      .view-desktop .phone-notch {
+        display: none;
+      }
+
+      .view-desktop .preview-card {
+        border-radius: 22px;
+      }
+
+      .preview-scroll::-webkit-scrollbar {
+        width: 10px;
+      }
+      .preview-scroll::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.14);
+        border-radius: 999px;
+        border: 2px solid rgba(0, 0, 0, 0);
+        background-clip: padding-box;
+      }
+
+      .preview {
+        transition: background var(--trans), color var(--trans);
+        background: var(--t-surface);
+        color: var(--t-text);
+        border-radius: 18px;
+        padding: 18px 18px 20px;
+      }
+
+      .preview * {
+        transition: color var(--trans), background-color var(--trans), border-color var(--trans);
+      }
+
+      .preview h1,
+      .preview h2,
+      .preview h3,
+      .preview h4,
+      .preview h5,
+      .preview h6 {
+        margin: 16px 0 10px;
+        font-family: var(--t-heading-font);
+        color: var(--t-heading);
+        letter-spacing: 0.1px;
+      }
+
+      .preview h1 {
+        font-size: var(--t-h1);
+      }
+      .preview h2 {
+        font-size: var(--t-h2);
+      }
+      .preview h3 {
+        font-size: var(--t-h3);
+      }
+      .preview h4 {
+        font-size: var(--t-h4);
+      }
+      .preview h5 {
+        font-size: var(--t-h5);
+      }
+      .preview h6 {
+        font-size: var(--t-h6);
+      }
+
+      .preview p {
+        margin: 10px 0;
+        font-size: var(--t-body);
+        line-height: var(--t-line);
+        letter-spacing: 0.2px;
+      }
+
+      .preview strong {
+        color: var(--t-strong);
+      }
+
+      .preview em {
+        color: var(--t-em);
+      }
+
+      .preview a {
+        color: var(--t-link);
+        text-decoration: var(--t-link-decoration);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+        transition: color var(--trans);
+      }
+
+      .preview a:hover {
+        color: var(--t-link-hover);
+      }
+
+      .preview blockquote {
+        margin: 14px 0;
+        padding: 12px 12px 12px 14px;
+        border-left: 4px solid var(--t-quote-border);
+        background: var(--t-quote-bg);
+        border-radius: 14px;
+        color: var(--t-quote-text);
+      }
+
+      .preview ul,
+      .preview ol {
+        padding-left: 22px;
+        margin: 12px 0;
+      }
+
+      .preview li {
+        margin: 6px 0;
+        font-size: var(--t-body);
+        line-height: var(--t-line);
+      }
+
+      .preview li::marker {
+        color: var(--t-list-marker);
+      }
+
+      .inline-code {
+        font-family: var(--mono);
+        font-size: 0.95em;
+        padding: 2px 6px;
+        border-radius: 8px;
+        background: var(--t-inline-code-bg);
+        border: 1px solid var(--t-inline-code-border);
+        color: var(--t-inline-code-text);
+      }
+
+      .codeblock {
+        margin: 14px 0;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--t-code-border);
+        background: var(--t-code-bg);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+      }
+
+      .codehead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      .dots {
+        display: inline-flex;
+        gap: 7px;
+        align-items: center;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        border: 1px solid rgba(0, 0, 0, 0.18);
+      }
+
+      .dot.red {
+        background: #ff5f57;
+      }
+      .dot.yellow {
+        background: #febc2e;
+      }
+      .dot.green {
+        background: #28c840;
+      }
+
+      .lang {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.64);
+      }
+
+      pre {
+        margin: 0;
+        padding: 12px 14px 14px;
+        overflow: auto;
+      }
+
+      pre code {
+        font-family: var(--mono);
+        font-size: 12.8px;
+        line-height: 1.65;
+        color: var(--t-code-text);
+        display: block;
+        white-space: pre;
+      }
+
+      .tok-kw {
+        color: #ff7b72;
+      }
+      .tok-str {
+        color: #a5d6ff;
+      }
+      .tok-com {
+        color: #8b949e;
+      }
+      .tok-num {
+        color: #d2a8ff;
+      }
+      .tok-fn {
+        color: #79c0ff;
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(0, 0, 0, 0.45);
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 12px;
+        letter-spacing: 0.2px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--trans), transform var(--trans);
+        z-index: 60;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-2px);
+      }
+
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+
+      .themes {
+        --t-surface: rgba(255, 255, 255, 0.94);
+        --t-text: rgba(10, 12, 18, 0.88);
+        --t-heading-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans";
+        --t-heading: rgba(16, 24, 40, 0.92);
+        --t-strong: rgba(19, 30, 52, 0.92);
+        --t-em: rgba(31, 41, 55, 0.86);
+        --t-link: rgba(37, 99, 235, 0.92);
+        --t-link-hover: rgba(29, 78, 216, 0.98);
+        --t-link-decoration: underline;
+        --t-quote-bg: rgba(2, 6, 23, 0.06);
+        --t-quote-border: rgba(37, 99, 235, 0.7);
+        --t-quote-text: rgba(15, 23, 42, 0.82);
+        --t-list-marker: rgba(37, 99, 235, 0.85);
+        --t-inline-code-bg: rgba(2, 6, 23, 0.06);
+        --t-inline-code-border: rgba(2, 6, 23, 0.1);
+        --t-inline-code-text: rgba(15, 23, 42, 0.86);
+        --t-code-bg: #0d1117;
+        --t-code-border: rgba(255, 255, 255, 0.1);
+        --t-code-text: rgba(201, 209, 217, 0.94);
+        --t-body: 14px;
+        --t-line: 1.78;
+        --t-h1: 26px;
+        --t-h2: 21px;
+        --t-h3: 18px;
+        --t-h4: 16px;
+        --t-h5: 15px;
+        --t-h6: 14px;
+      }
+
+      .t-white {
+        --t-surface: rgba(255, 255, 255, 0.95);
+        --t-text: rgba(17, 24, 39, 0.9);
+        --t-heading-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans";
+        --t-heading: rgba(15, 23, 42, 0.94);
+        --t-strong: rgba(2, 6, 23, 0.9);
+        --t-em: rgba(31, 41, 55, 0.88);
+        --t-link: rgba(37, 99, 235, 0.92);
+        --t-link-hover: rgba(29, 78, 216, 0.98);
+        --t-quote-bg: rgba(2, 6, 23, 0.05);
+        --t-quote-border: rgba(37, 99, 235, 0.7);
+        --t-list-marker: rgba(37, 99, 235, 0.85);
+        --t-inline-code-bg: rgba(2, 6, 23, 0.06);
+        --t-inline-code-border: rgba(2, 6, 23, 0.1);
+        --t-body: 14px;
+        --t-h1: 26px;
+      }
+
+      .t-juejin {
+        --t-surface: rgba(248, 244, 255, 0.96);
+        --t-text: rgba(30, 23, 43, 0.9);
+        --t-heading-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans";
+        --t-heading: rgba(79, 27, 118, 0.95);
+        --t-strong: rgba(64, 18, 98, 0.96);
+        --t-em: rgba(88, 57, 122, 0.92);
+        --t-link: rgba(126, 34, 206, 0.92);
+        --t-link-hover: rgba(107, 33, 168, 0.98);
+        --t-quote-bg: rgba(126, 34, 206, 0.08);
+        --t-quote-border: rgba(126, 34, 206, 0.62);
+        --t-quote-text: rgba(58, 18, 91, 0.86);
+        --t-list-marker: rgba(126, 34, 206, 0.78);
+        --t-inline-code-bg: rgba(126, 34, 206, 0.08);
+        --t-inline-code-border: rgba(126, 34, 206, 0.16);
+        --t-inline-code-text: rgba(58, 18, 91, 0.9);
+        --t-body: 14px;
+        --t-h1: 28px;
+        --t-h2: 22px;
+      }
+
+      .t-wechat-dark {
+        --t-surface: rgba(255, 244, 248, 0.96);
+        --t-text: rgba(74, 29, 45, 0.9);
+        --t-heading-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans";
+        --t-heading: rgba(190, 24, 93, 0.95);
+        --t-strong: rgba(136, 19, 55, 0.96);
+        --t-em: rgba(214, 31, 105, 0.9);
+        --t-link: rgba(219, 39, 119, 0.92);
+        --t-link-hover: rgba(190, 24, 93, 0.98);
+        --t-link-decoration: underline;
+        --t-quote-bg: rgba(219, 39, 119, 0.08);
+        --t-quote-border: rgba(219, 39, 119, 0.62);
+        --t-quote-text: rgba(94, 33, 54, 0.88);
+        --t-list-marker: rgba(219, 39, 119, 0.82);
+        --t-inline-code-bg: rgba(219, 39, 119, 0.08);
+        --t-inline-code-border: rgba(219, 39, 119, 0.16);
+        --t-inline-code-text: rgba(88, 35, 52, 0.92);
+        --t-code-bg: #0d1117;
+        --t-code-border: rgba(255, 255, 255, 0.1);
+        --t-code-text: rgba(201, 209, 217, 0.94);
+        --t-body: 14px;
+        --t-h1: 28px;
+        --t-h2: 22px;
+      }
+
+      .t-tech-blue {
+        --t-surface: rgba(236, 252, 255, 0.94);
+        --t-text: rgba(10, 32, 46, 0.9);
+        --t-heading-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans";
+        --t-heading: rgba(8, 78, 130, 0.96);
+        --t-strong: rgba(4, 55, 92, 0.96);
+        --t-em: rgba(6, 95, 138, 0.9);
+        --t-link: rgba(2, 132, 199, 0.92);
+        --t-link-hover: rgba(3, 105, 161, 0.98);
+        --t-quote-bg: rgba(2, 132, 199, 0.08);
+        --t-quote-border: rgba(2, 132, 199, 0.62);
+        --t-quote-text: rgba(8, 78, 130, 0.88);
+        --t-list-marker: rgba(2, 132, 199, 0.82);
+        --t-inline-code-bg: rgba(2, 132, 199, 0.08);
+        --t-inline-code-border: rgba(2, 132, 199, 0.16);
+        --t-inline-code-text: rgba(8, 78, 130, 0.9);
+        --t-body: 14px;
+        --t-h1: 28px;
+        --t-h2: 22px;
+      }
+
+      .t-vintage-orange {
+        --t-surface: rgba(255, 248, 238, 0.95);
+        --t-text: rgba(52, 28, 14, 0.9);
+        --t-heading-font: ui-serif, Georgia, "Times New Roman", Times, serif;
+        --t-heading: rgba(124, 45, 18, 0.95);
+        --t-strong: rgba(88, 40, 18, 0.96);
+        --t-em: rgba(120, 53, 15, 0.92);
+        --t-link: rgba(234, 88, 12, 0.92);
+        --t-link-hover: rgba(194, 65, 12, 0.98);
+        --t-link-decoration: underline;
+        --t-quote-bg: rgba(234, 88, 12, 0.08);
+        --t-quote-border: rgba(234, 88, 12, 0.62);
+        --t-quote-text: rgba(88, 40, 18, 0.86);
+        --t-list-marker: rgba(234, 88, 12, 0.82);
+        --t-inline-code-bg: rgba(234, 88, 12, 0.08);
+        --t-inline-code-border: rgba(234, 88, 12, 0.16);
+        --t-inline-code-text: rgba(88, 40, 18, 0.9);
+        --t-body: 15px;
+        --t-line: 1.82;
+        --t-h1: 30px;
+        --t-h2: 24px;
+        --t-h3: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <div class="toolbar-wrap">
+      <div class="toolbar glass" role="toolbar" aria-label="设置">
+        <div class="tool" id="themeButton" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+          <span class="tool-icon" aria-hidden="true">🌈</span>
+          <span class="tool-label"><span id="themeLabel">简约白</span> <span class="tool-muted chev" aria-hidden="true">▾</span></span>
+          <span class="sr">主题切换</span>
+        </div>
+
+        <div class="tool" id="viewButton" role="button" tabindex="0" aria-pressed="false">
+          <span class="tool-icon" id="viewIcon" aria-hidden="true">📱</span>
+          <span class="sr">视图模式切换</span>
+        </div>
+
+        <div class="tool" id="copyButton" role="button" tabindex="0">
+          <span class="tool-icon" aria-hidden="true">📋</span>
+          <span class="sr">一键复制（公众号兼容 HTML）</span>
+        </div>
+      </div>
+
+      <div class="menu glass" id="themeMenu" role="listbox" aria-label="主题列表">
+        <div class="menu-grid" id="themeGrid"></div>
+      </div>
+    </div>
+
+    <main class="page">
+      <div class="shell">
+        <section class="glass card">
+          <div class="card-head">
+            <div>
+              <div class="title">Markdown 输入</div>
+              <div class="subtitle">模拟“外部 Markdown 字符串”输入，实时驱动右侧预览渲染。</div>
+            </div>
+            <div class="pill-row" aria-hidden="true">
+              <div class="pill">实时渲染</div>
+              <div class="pill">主题联动</div>
+              <div class="pill">公众号复制</div>
+            </div>
+          </div>
+          <textarea class="editor" id="mdInput" spellcheck="false"></textarea>
+        </section>
+
+        <section class="glass preview-wrap">
+          <div class="card-head">
+            <div>
+              <div class="title">Markdown 实时预览</div>
+              <div class="subtitle">主题切换会改变标题、引用、列表、强调与链接风格，并带平滑过渡。</div>
+            </div>
+            <div class="pill-row" aria-hidden="true">
+              <div class="pill">macOS 代码容器</div>
+              <div class="pill">GitHub Dark</div>
+            </div>
+          </div>
+
+          <div class="preview-stage themes t-white" id="previewStage">
+            <div class="phone-frame" id="frame">
+              <div class="phone-notch" aria-hidden="true"></div>
+              <div class="preview-card">
+                <div class="preview-toolbar-placeholder" aria-hidden="true">顶部设置区域（悬浮固定，居中显示，图标化按钮）</div>
+                <div class="preview-scroll">
+                  <div class="preview" id="preview"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const THEMES = [
+        {
+          id: "t-white",
+          name: "简约白",
+          hint: "清爽留白｜偏 Notion",
+          swatch: "linear-gradient(135deg, #ffffff, #e5e7eb)",
+        },
+        {
+          id: "t-juejin",
+          name: "掘金酱紫",
+          hint: "紫系强调｜偏掘金感",
+          swatch: "linear-gradient(135deg, #a855f7, #7c3aed)",
+        },
+        {
+          id: "t-wechat-dark",
+          name: "樱花粉",
+          hint: "柔和粉系｜樱花气质",
+          swatch: "linear-gradient(135deg, #fecdd3, #f472b6)",
+        },
+        {
+          id: "t-tech-blue",
+          name: "科技蓝",
+          hint: "冷色科技｜偏 Vercel",
+          swatch: "linear-gradient(135deg, #0ea5e9, #22d3ee)",
+        },
+        {
+          id: "t-vintage-orange",
+          name: "复古橙",
+          hint: "衬线复古｜暖色强调",
+          swatch: "linear-gradient(135deg, #fb923c, #ea580c)",
+        },
+      ];
+
+      const SAMPLE_MD = `# 微信公众号排版优化的 Markdown 渲染组件
+
+> 目标：在 **预览一致** 的前提下，一键复制为 *公众号可粘贴* 的 HTML（内联样式）。
+
+## 主题切换会改变什么？
+
+- H1~H6 的字号、颜色、字体
+- 引用块、列表项、强调文字（**加粗** / *斜体*）样式
+- 链接样式：下划线与悬停颜色（例如：[微信公众号文章](https://mp.weixin.qq.com/)）
+
+## 代码块（macOS 容器 + GitHub Dark）
+
+\`\`\`ts
+type ThemeId = "t-white" | "t-juejin" | "t-wechat-dark" | "t-tech-blue" | "t-vintage-orange";
+
+export function exportToWechatHtml(markdown: string, theme: ThemeId): string {
+  // 复制时只输出基础标签 + 内联 style，严格白名单
+  return "<p style=\\"font-size:14px;line-height:1.75;\\">...</p>";
+}
+\`\`\`
+
+### 行内代码与强调
+
+在公众号里，建议用 \`<span style="...">\` 表达 \`inline code\`，避免依赖 class。
+
+#### 小提示
+
+1. 复制输出尽量只保留：p / span / strong / em / a / ul / ol / li / blockquote / pre / code
+2. 对不确定可用的样式，优先降级为更保守的效果
+`;
+
+      const elMdInput = document.getElementById("mdInput");
+      const elPreview = document.getElementById("preview");
+      const elPreviewStage = document.getElementById("previewStage");
+      const elThemeButton = document.getElementById("themeButton");
+      const elThemeMenu = document.getElementById("themeMenu");
+      const elThemeGrid = document.getElementById("themeGrid");
+      const elThemeLabel = document.getElementById("themeLabel");
+      const elViewButton = document.getElementById("viewButton");
+      const elViewIcon = document.getElementById("viewIcon");
+      const elCopyButton = document.getElementById("copyButton");
+      const elToast = document.getElementById("toast");
+
+      let state = {
+        themeId: "t-white",
+        view: "phone",
+      };
+
+      function showToast(message) {
+        elToast.textContent = message;
+        elToast.classList.add("show");
+        window.clearTimeout(showToast._t);
+        showToast._t = window.setTimeout(() => elToast.classList.remove("show"), 1400);
+      }
+
+      function escapeHtml(text) {
+        return text
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function inlineParse(text) {
+        let out = escapeHtml(text);
+
+        out = out.replace(/`([^`]+)`/g, (_, code) => `<span class="inline-code">${escapeHtml(code)}</span>`);
+        out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        out = out.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+        out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${label}</a>`);
+        return out;
+      }
+
+      function highlightJsLike(code) {
+        const src = escapeHtml(code);
+        const parts = [];
+        let i = 0;
+
+        const push = (type, text) => {
+          if (!text) return;
+          if (!type) parts.push(text);
+          else parts.push(`<span class="${type}">${text}</span>`);
+        };
+
+        const re = /\/\/.*?$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|` + "`" + `(?:\\.|[^` + "`" + `\\])*` + "`" + `|\b(?:type|interface|export|import|from|return|function|const|let|var|if|else|for|while|switch|case|break|continue|new|class|extends|implements|public|private|protected|async|await|try|catch|finally)\b|\b(?:true|false|null|undefined)\b|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*(?=\s*\()/gm;
+
+        let m;
+        while ((m = re.exec(src))) {
+          if (m.index > i) push(null, src.slice(i, m.index));
+          const tok = m[0];
+          let type = null;
+
+          if (tok.startsWith("//") || tok.startsWith("/*")) type = "tok-com";
+          else if (tok.startsWith('"') || tok.startsWith("'") || tok.startsWith("`")) type = "tok-str";
+          else if (/^\d/.test(tok)) type = "tok-num";
+          else if (/^(true|false|null|undefined)$/.test(tok)) type = "tok-num";
+          else if (/^(type|interface|export|import|from|return|function|const|let|var|if|else|for|while|switch|case|break|continue|new|class|extends|implements|public|private|protected|async|await|try|catch|finally)$/.test(tok))
+            type = "tok-kw";
+          else type = "tok-fn";
+
+          push(type, tok);
+          i = m.index + tok.length;
+        }
+        if (i < src.length) push(null, src.slice(i));
+        return parts.join("");
+      }
+
+      function parseMarkdown(md) {
+        const lines = md.replaceAll("\r\n", "\n").split("\n");
+        const blocks = [];
+        let i = 0;
+
+        const eatBlank = () => {
+          while (i < lines.length && lines[i].trim() === "") i += 1;
+        };
+
+        const readCodeFence = () => {
+          const first = lines[i];
+          const lang = first.trim().slice(3).trim();
+          i += 1;
+          const code = [];
+          while (i < lines.length && !lines[i].trim().startsWith("```")) {
+            code.push(lines[i]);
+            i += 1;
+          }
+          if (i < lines.length) i += 1;
+          blocks.push({ type: "code", lang: lang || "", code: code.join("\n") });
+        };
+
+        const readList = (ordered) => {
+          const items = [];
+          while (i < lines.length) {
+            const line = lines[i];
+            const m = ordered ? line.match(/^\s*\d+\.\s+(.*)$/) : line.match(/^\s*[-*+]\s+(.*)$/);
+            if (!m) break;
+            items.push(m[1]);
+            i += 1;
+          }
+          blocks.push({ type: ordered ? "ol" : "ul", items });
+        };
+
+        const readBlockquote = () => {
+          const q = [];
+          while (i < lines.length) {
+            const m = lines[i].match(/^\s*>\s?(.*)$/);
+            if (!m) break;
+            q.push(m[1]);
+            i += 1;
+          }
+          blocks.push({ type: "blockquote", text: q.join("\n") });
+        };
+
+        const readParagraph = () => {
+          const p = [];
+          while (i < lines.length) {
+            const line = lines[i];
+            if (line.trim() === "") break;
+            if (line.trim().startsWith("```")) break;
+            if (/^\s*#{1,6}\s+/.test(line)) break;
+            if (/^\s*>\s?/.test(line)) break;
+            if (/^\s*[-*+]\s+/.test(line)) break;
+            if (/^\s*\d+\.\s+/.test(line)) break;
+            p.push(line);
+            i += 1;
+          }
+          blocks.push({ type: "p", text: p.join(" ") });
+        };
+
+        while (i < lines.length) {
+          eatBlank();
+          if (i >= lines.length) break;
+          const line = lines[i];
+
+          if (line.trim().startsWith("```")) {
+            readCodeFence();
+            continue;
+          }
+
+          const h = line.match(/^(#{1,6})\s+(.*)$/);
+          if (h) {
+            blocks.push({ type: "h", level: h[1].length, text: h[2] });
+            i += 1;
+            continue;
+          }
+
+          if (/^\s*>\s?/.test(line)) {
+            readBlockquote();
+            continue;
+          }
+
+          if (/^\s*[-*+]\s+/.test(line)) {
+            readList(false);
+            continue;
+          }
+
+          if (/^\s*\d+\.\s+/.test(line)) {
+            readList(true);
+            continue;
+          }
+
+          readParagraph();
+        }
+
+        return blocks;
+      }
+
+      function renderPreviewHtml(blocks) {
+        return blocks
+          .map((b) => {
+            if (b.type === "h") {
+              const tag = `h${b.level}`;
+              return `<${tag}>${inlineParse(b.text)}</${tag}>`;
+            }
+            if (b.type === "blockquote") {
+              return `<blockquote>${b.text
+                .split("\n")
+                .map((l) => `<p style="margin:0">${inlineParse(l)}</p>`)
+                .join("")}</blockquote>`;
+            }
+            if (b.type === "ul" || b.type === "ol") {
+              const tag = b.type;
+              return `<${tag}>${b.items.map((it) => `<li>${inlineParse(it)}</li>`).join("")}</${tag}>`;
+            }
+            if (b.type === "code") {
+              const lang = b.lang || "code";
+              const body = /^(ts|tsx|js|jsx)$/.test(lang) ? highlightJsLike(b.code) : escapeHtml(b.code);
+              return `<div class="codeblock"><div class="codehead"><div class="dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><div class="lang">${escapeHtml(
+                lang
+              )}</div></div><pre><code>${body}</code></pre></div>`;
+            }
+            return `<p>${inlineParse(b.text)}</p>`;
+          })
+          .join("");
+      }
+
+      function getThemeTokens(themeId) {
+        const styles = window.getComputedStyle(elPreviewStage);
+        return {
+          surface: styles.getPropertyValue("--t-surface").trim() || "#fff",
+          text: styles.getPropertyValue("--t-text").trim() || "#111827",
+          heading: styles.getPropertyValue("--t-heading").trim() || "#111827",
+          strong: styles.getPropertyValue("--t-strong").trim() || "#111827",
+          em: styles.getPropertyValue("--t-em").trim() || "#374151",
+          link: styles.getPropertyValue("--t-link").trim() || "#2563eb",
+          linkHover: styles.getPropertyValue("--t-link-hover").trim() || "#1d4ed8",
+          quoteBg: styles.getPropertyValue("--t-quote-bg").trim() || "rgba(2,6,23,0.05)",
+          quoteBorder: styles.getPropertyValue("--t-quote-border").trim() || "rgba(37,99,235,0.7)",
+          quoteText: styles.getPropertyValue("--t-quote-text").trim() || "#0f172a",
+          listMarker: styles.getPropertyValue("--t-list-marker").trim() || "#2563eb",
+          inlineCodeBg: styles.getPropertyValue("--t-inline-code-bg").trim() || "rgba(2,6,23,0.06)",
+          inlineCodeBorder: styles.getPropertyValue("--t-inline-code-border").trim() || "rgba(2,6,23,0.1)",
+          inlineCodeText: styles.getPropertyValue("--t-inline-code-text").trim() || "#0f172a",
+          codeBg: styles.getPropertyValue("--t-code-bg").trim() || "#0d1117",
+          codeBorder: styles.getPropertyValue("--t-code-border").trim() || "rgba(255,255,255,0.1)",
+          codeText: styles.getPropertyValue("--t-code-text").trim() || "rgba(201,209,217,0.94)",
+          body: styles.getPropertyValue("--t-body").trim() || "14px",
+          line: styles.getPropertyValue("--t-line").trim() || "1.78",
+          h1: styles.getPropertyValue("--t-h1").trim() || "26px",
+          h2: styles.getPropertyValue("--t-h2").trim() || "21px",
+          h3: styles.getPropertyValue("--t-h3").trim() || "18px",
+          h4: styles.getPropertyValue("--t-h4").trim() || "16px",
+          h5: styles.getPropertyValue("--t-h5").trim() || "15px",
+          h6: styles.getPropertyValue("--t-h6").trim() || "14px",
+        };
+      }
+
+      function exportWechatInlineHtml(md, themeId) {
+        const blocks = parseMarkdown(md);
+        const t = getThemeTokens(themeId);
+
+        const s = {
+          p: `margin:10px 0;font-size:${t.body};line-height:${t.line};color:${t.text};letter-spacing:0.2px;`,
+          h: (level) => {
+            const size = t[`h${level}`] || t.h3;
+            return `margin:16px 0 10px;font-size:${size};line-height:1.25;color:${t.heading};font-weight:700;letter-spacing:0.1px;`;
+          },
+          strong: `color:${t.strong};font-weight:700;`,
+          em: `color:${t.em};font-style:italic;`,
+          a: `color:${t.link};text-decoration:underline;text-underline-offset:3px;`,
+          ul: `margin:12px 0;padding-left:22px;`,
+          ol: `margin:12px 0;padding-left:22px;`,
+          li: `margin:6px 0;font-size:${t.body};line-height:${t.line};color:${t.text};`,
+          blockquote: `margin:14px 0;padding:12px 12px 12px 14px;border-left:4px solid ${t.quoteBorder};background-color:${t.quoteBg};border-radius:14px;color:${t.quoteText};`,
+          inlineCode: `font-family:${escapeHtml(getComputedStyle(document.documentElement).getPropertyValue("--mono").trim() || "monospace")};font-size:0.95em;padding:2px 6px;border-radius:8px;background-color:${t.inlineCodeBg};border:1px solid ${t.inlineCodeBorder};color:${t.inlineCodeText};`,
+          codeWrap: `margin:14px 0;border-radius:16px;overflow:hidden;border:1px solid ${t.codeBorder};background-color:${t.codeBg};`,
+          codeHead: `padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);background-color:rgba(0,0,0,0.18);`,
+          dotsRow: `display:inline-block;`,
+          dot: (bg) => `display:inline-block;width:10px;height:10px;border-radius:999px;background-color:${bg};margin-right:7px;border:1px solid rgba(0,0,0,0.18);`,
+          lang: `float:right;font-family:${escapeHtml(getComputedStyle(document.documentElement).getPropertyValue("--mono").trim() || "monospace")};font-size:12px;color:rgba(255,255,255,0.64);`,
+          pre: `margin:0;padding:12px 14px 14px;overflow:auto;`,
+          code: `display:block;font-family:${escapeHtml(getComputedStyle(document.documentElement).getPropertyValue("--mono").trim() || "monospace")};font-size:12.8px;line-height:1.65;color:${t.codeText};white-space:pre;`,
+          container: `background-color:${t.surface};color:${t.text};padding:18px 18px 20px;border-radius:18px;`,
+        };
+
+        const renderInlineText = (text) => {
+          let out = escapeHtml(text);
+          out = out.replace(/`([^`]+)`/g, (_, code) => `<span style="${s.inlineCode}">${escapeHtml(code)}</span>`);
+          out = out.replace(/\*\*([^*]+)\*\*/g, `<strong style="${s.strong}">$1</strong>`);
+          out = out.replace(/\*([^*]+)\*/g, `<em style="${s.em}">$1</em>`);
+          out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => `<a style="${s.a}" href="${escapeHtml(url)}">${label}</a>`);
+          return out;
+        };
+
+        const body = blocks
+          .map((b) => {
+            if (b.type === "h") return `<h${b.level} style="${s.h(b.level)}">${renderInlineText(b.text)}</h${b.level}>`;
+            if (b.type === "blockquote") {
+              const inner = b.text
+                .split("\n")
+                .map((l) => `<p style="margin:0;font-size:${t.body};line-height:${t.line};">${renderInlineText(l)}</p>`)
+                .join("");
+              return `<blockquote style="${s.blockquote}">${inner}</blockquote>`;
+            }
+            if (b.type === "ul" || b.type === "ol") {
+              const tag = b.type;
+              const listStyle = tag === "ul" ? s.ul : s.ol;
+              return `<${tag} style="${listStyle}">${b.items.map((it) => `<li style="${s.li}">${renderInlineText(it)}</li>`).join("")}</${tag}>`;
+            }
+            if (b.type === "code") {
+              const lang = b.lang || "code";
+              const safeCode = escapeHtml(b.code);
+              return `<div style="${s.codeWrap}"><div style="${s.codeHead}"><span style="${s.dotsRow}"><span style="${s.dot(
+                "#ff5f57"
+              )}"></span><span style="${s.dot("#febc2e")}"></span><span style="${s.dot("#28c840")}"></span></span><span style="${s.lang}">${escapeHtml(
+                lang
+              )}</span></div><pre style="${s.pre}"><code style="${s.code}">${safeCode}</code></pre></div>`;
+            }
+            return `<p style="${s.p}">${renderInlineText(b.text)}</p>`;
+          })
+          .join("");
+
+        return `<section style="${s.container}">${body}</section>`;
+      }
+
+      function setTheme(themeId) {
+        state.themeId = themeId;
+        elPreviewStage.classList.remove(...THEMES.map((t) => t.id));
+        elPreviewStage.classList.add(themeId);
+        const theme = THEMES.find((t) => t.id === themeId);
+        elThemeLabel.textContent = theme ? theme.name : "主题";
+      }
+
+      function setView(view) {
+        state.view = view;
+        document.body.classList.toggle("view-desktop", view === "desktop");
+        elViewButton.setAttribute("aria-pressed", view === "desktop" ? "true" : "false");
+        elViewIcon.textContent = view === "desktop" ? "💻" : "📱";
+      }
+
+      function render() {
+        const md = elMdInput.value || "";
+        const blocks = parseMarkdown(md);
+        elPreview.innerHTML = renderPreviewHtml(blocks);
+      }
+
+      function toggleThemeMenu(open) {
+        const next = typeof open === "boolean" ? open : !elThemeMenu.classList.contains("open");
+        elThemeMenu.classList.toggle("open", next);
+        elThemeButton.setAttribute("aria-expanded", next ? "true" : "false");
+      }
+
+      function initThemeMenu() {
+        elThemeGrid.innerHTML = THEMES.map((t) => {
+          return `<div class="theme-item" role="option" data-theme="${t.id}" aria-selected="${t.id === state.themeId ? "true" : "false"}">
+            <div class="theme-left">
+              <div class="swatch" style="background:${t.swatch}"></div>
+              <div style="min-width:0">
+                <div class="theme-name">${t.name}</div>
+                <div class="theme-hint">${t.hint}</div>
+              </div>
+            </div>
+            <div class="badge">${t.id === state.themeId ? "当前" : "切换"}</div>
+          </div>`;
+        }).join("");
+
+        elThemeGrid.querySelectorAll("[data-theme]").forEach((node) => {
+          node.addEventListener("click", () => {
+            const themeId = node.getAttribute("data-theme");
+            setTheme(themeId);
+            initThemeMenu();
+            toggleThemeMenu(false);
+            render();
+          });
+        });
+      }
+
+      function installGlobalClose() {
+        window.addEventListener("click", (e) => {
+          const isInMenu = elThemeMenu.contains(e.target);
+          const isInBtn = elThemeButton.contains(e.target);
+          if (!isInMenu && !isInBtn) toggleThemeMenu(false);
+        });
+
+        window.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") toggleThemeMenu(false);
+        });
+      }
+
+      async function copyWechatHtml() {
+        const html = exportWechatInlineHtml(elMdInput.value || "", state.themeId);
+        const plain = (elMdInput.value || "").trim();
+
+        try {
+          if (navigator.clipboard && window.ClipboardItem) {
+            const item = new ClipboardItem({
+              "text/html": new Blob([html], { type: "text/html" }),
+              "text/plain": new Blob([plain || html], { type: "text/plain" }),
+            });
+            await navigator.clipboard.write([item]);
+            showToast("已复制：公众号兼容 HTML（内联样式）");
+            return;
+          }
+        } catch {}
+
+        const ta = document.createElement("textarea");
+        ta.value = html;
+        ta.setAttribute("readonly", "true");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        showToast("已复制（降级）：HTML 已写入剪贴板");
+      }
+
+      function bindToolbar() {
+        elThemeButton.addEventListener("click", () => toggleThemeMenu());
+        elThemeButton.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") toggleThemeMenu();
+        });
+
+        elViewButton.addEventListener("click", () => {
+          setView(state.view === "phone" ? "desktop" : "phone");
+        });
+
+        elCopyButton.addEventListener("click", copyWechatHtml);
+      }
+
+      elMdInput.value = SAMPLE_MD;
+      setTheme(state.themeId);
+      setView(state.view);
+      initThemeMenu();
+      installGlobalClose();
+      bindToolbar();
+      render();
+
+      elMdInput.addEventListener("input", () => render());
+    </script>
+  </body>
+</html>

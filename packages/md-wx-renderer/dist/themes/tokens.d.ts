@@ -1,0 +1,31 @@
+export type ThemeId = 't-white' | 't-juejin' | 't-wechat-dark' | 't-tech-blue' | 't-vintage-orange';
+export interface ThemeTokens {
+    surface: string;
+    text: string;
+    headingFont: string;
+    heading: string;
+    strong: string;
+    em: string;
+    link: string;
+    linkHover: string;
+    linkDecoration: 'none' | 'underline';
+    quoteBg: string;
+    quoteBorder: string;
+    quoteText: string;
+    listMarker: string;
+    inlineCodeBg: string;
+    inlineCodeBorder: string;
+    inlineCodeText: string;
+    codeBg: string;
+    codeBorder: string;
+    codeText: string;
+    body: string;
+    line: string;
+    h1: string;
+    h2: string;
+    h3: string;
+    h4: string;
+    h5: string;
+    h6: string;
+}
+export declare const THEME_TOKENS: Record<ThemeId, ThemeTokens>;

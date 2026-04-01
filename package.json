@@ -1,0 +1,20 @@
+{
+  "name": "md-wx",
+  "private": true,
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm -w apps/playground run dev",
+    "build": "npm run build:lib && npm run build:play",
+    "build:lib": "npm -w packages/md-wx-renderer run build",
+    "build:play": "npm -w apps/playground run build",
+    "lint": "npm -ws run lint --if-present",
+    "typecheck": "npm -ws run typecheck --if-present"
+  }
+}
